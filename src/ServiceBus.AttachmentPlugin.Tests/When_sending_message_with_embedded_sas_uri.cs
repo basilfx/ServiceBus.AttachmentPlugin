@@ -3,7 +3,7 @@
     using System;
     using System.Text;
     using System.Threading.Tasks;
-    using Microsoft.Azure.ServiceBus;
+    using Azure.Messaging.ServiceBus;
     using Xunit;
 
     public class When_sending_message_with_embedded_block_sas_uri : IClassFixture<AzureStorageEmulatorFixture>
@@ -13,7 +13,7 @@
         {
             var payload = "payload";
             var bytes = Encoding.UTF8.GetBytes(payload);
-            var message = new Message(bytes)
+            var message = new ServiceBusMessage(bytes)
             {
                 MessageId = Guid.NewGuid().ToString(),
             };
@@ -22,9 +22,9 @@
                 .WithBlobSasUri(sasTokenValidationTime: TimeSpan.FromHours(4), messagePropertyToIdentifySasUri: "mySasUriProperty"));
             var result = await plugin.BeforeMessageSend(message);
 
-            Assert.Null(result.Body);
-            Assert.True(message.UserProperties.ContainsKey("attachment-id"));
-            Assert.True(message.UserProperties.ContainsKey("mySasUriProperty"));
+            Assert.Equal(new byte[0], result.Body.ToArray());
+            Assert.True(message.ApplicationProperties.ContainsKey("attachment-id"));
+            Assert.True(message.ApplicationProperties.ContainsKey("mySasUriProperty"));
         }
     }
 }

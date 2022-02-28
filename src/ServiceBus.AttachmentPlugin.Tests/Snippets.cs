@@ -2,24 +2,12 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.Azure.ServiceBus;
-using Microsoft.Azure.ServiceBus.Core;
+using Azure.Messaging.ServiceBus;
 using Microsoft.Azure.Storage.Auth;
 using Newtonsoft.Json;
 
 class Snippets
 {
-    void ConfigurationAndRegistration(string connectionString, string queueName, string storageConnectionString)
-    {
-        #region ConfigurationAndRegistration
-
-        var sender = new MessageSender(connectionString, queueName);
-        var config = new AzureStorageAttachmentConfiguration(storageConnectionString);
-        sender.RegisterAzureStorageAttachmentPlugin(config);
-
-        #endregion
-    }
-
     [SuppressMessage("ReSharper", "UnusedVariable")]
     void AttachmentSending()
     {
@@ -31,51 +19,7 @@ class Snippets
         };
         var serialized = JsonConvert.SerializeObject(payload);
         var payloadAsBytes = Encoding.UTF8.GetBytes(serialized);
-        var message = new Message(payloadAsBytes);
-
-        #endregion
-    }
-
-    [SuppressMessage("ReSharper", "UnusedVariable")]
-    async Task AttachmentReceiving(string connectionString, string entityPath, AzureStorageAttachmentConfiguration config)
-    {
-        #region AttachmentReceiving
-
-        var receiver = new MessageReceiver(connectionString, entityPath, ReceiveMode.ReceiveAndDelete);
-        receiver.RegisterAzureStorageAttachmentPlugin(config);
-        var message = await receiver.ReceiveAsync().ConfigureAwait(false);
-        // message will contain the original payload
-
-        #endregion
-    }
-
-    void ConfigurationAndRegistrationSas(string connectionString, string queueName, string storageConnectionString)
-    {
-        #region ConfigurationAndRegistrationSas
-
-        var sender = new MessageSender(connectionString, queueName);
-        var config = new AzureStorageAttachmentConfiguration(storageConnectionString)
-            .WithBlobSasUri(
-                sasTokenValidationTime: TimeSpan.FromHours(4),
-                messagePropertyToIdentifySasUri: "mySasUriProperty");
-        sender.RegisterAzureStorageAttachmentPlugin(config);
-
-        #endregion
-    }
-
-    void Configure_blob_name_override(string connectionString, string queueName, string storageConnectionString)
-    {
-        #region Configure_blob_name_override
-
-        var sender = new MessageSender(connectionString, queueName);
-        var config = new AzureStorageAttachmentConfiguration(storageConnectionString)
-            .OverrideBlobName(message =>
-            {
-                var tenantId = message.UserProperties["tenantId"].ToString();
-                var blobName = $"{tenantId}/{message.MessageId}";
-                return blobName;
-            });
-        sender.RegisterAzureStorageAttachmentPlugin(config);
+        var message = new ServiceBusMessage(payloadAsBytes);
 
         #endregion
     }
@@ -92,19 +36,6 @@ class Snippets
         #endregion
     }
 
-    void Configure_body_override(string connectionString, string queueName, string storageConnectionString)
-    {
-        #region Configure_body_override
-
-        var sender = new MessageSender(connectionString, queueName);
-        var config = new AzureStorageAttachmentConfiguration(storageConnectionString)
-            .OverrideBody(message => Array.Empty<byte>());
-
-        sender.RegisterAzureStorageAttachmentPlugin(config);
-
-        #endregion
-    }
-
     [SuppressMessage("ReSharper", "UnusedVariable")]
     void AttachmentSendingSas()
     {
@@ -116,20 +47,7 @@ class Snippets
         };
         var serialized = JsonConvert.SerializeObject(payload);
         var payloadAsBytes = Encoding.UTF8.GetBytes(serialized);
-        var message = new Message(payloadAsBytes);
-
-        #endregion
-    }
-
-    [SuppressMessage("ReSharper", "UnusedVariable")]
-    async Task AttachmentReceivingSas(MessageReceiver messageReceiver)
-    {
-        #region AttachmentReceivingSas
-
-        // Override message property used to identify SAS URI
-        // .RegisterAzureStorageAttachmentPluginForReceivingOnly() is using "$attachment.sas.uri" by default
-        messageReceiver.RegisterAzureStorageAttachmentPluginForReceivingOnly("mySasUriProperty");
-        var message = await messageReceiver.ReceiveAsync().ConfigureAwait(false);
+        var message = new ServiceBusMessage(payloadAsBytes);
 
         #endregion
     }
@@ -140,7 +58,7 @@ class Snippets
 
         // messages with body > 200KB should be converted to use attachments
         new AzureStorageAttachmentConfiguration(storageConnectionString,
-            messageMaxSizeReachedCriteria: message => message.Body.Length > 200 * 1024);
+            messageMaxSizeReachedCriteria: message => message.Body.ToArray().Length > 200 * 1024);
 
         #endregion
     }
@@ -167,7 +85,7 @@ class Snippets
         #endregion
     }
 
-    async Task Upload_attachment_without_registering_plugin(Message message, AzureStorageAttachmentConfiguration config)
+    async Task Upload_attachment_without_registering_plugin(ServiceBusMessage message, AzureStorageAttachmentConfiguration config)
     {
         #region Upload_attachment_without_registering_plugin
 
@@ -176,7 +94,8 @@ class Snippets
 
         #endregion
     }
-    async Task Download_attachment_without_registering_plugin(Message message, AzureStorageAttachmentConfiguration config)
+
+    async Task Download_attachment_without_registering_plugin(ServiceBusReceivedMessage message, AzureStorageAttachmentConfiguration config)
     {
         #region Download_attachment_without_registering_plugin
 

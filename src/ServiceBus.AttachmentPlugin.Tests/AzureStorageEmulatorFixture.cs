@@ -2,7 +2,7 @@
 {
     using System;
     using System.Threading.Tasks;
-    using Microsoft.Azure.ServiceBus;
+    using Azure.Messaging.ServiceBus;
     using Microsoft.Azure.Storage;
     using Microsoft.Azure.Storage.Blob;
 

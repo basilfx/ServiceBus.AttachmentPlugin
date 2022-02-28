@@ -3,7 +3,7 @@
     using System;
     using System.Text;
     using System.Threading.Tasks;
-    using Microsoft.Azure.ServiceBus;
+    using Azure.Messaging.ServiceBus;
     using Microsoft.Azure.Storage;
     using Microsoft.Azure.Storage.Auth;
     using Microsoft.Azure.Storage.Blob;
@@ -23,7 +23,7 @@
         {
             var payload = "payload";
             var bytes = Encoding.UTF8.GetBytes(payload);
-            var message = new Message(bytes)
+            var message = new ServiceBusMessage(bytes)
             {
                 MessageId = Guid.NewGuid().ToString(),
             };
@@ -31,8 +31,8 @@
             var plugin = new AzureStorageAttachment(new AzureStorageAttachmentConfiguration(credentials, fixture.GetBlobEndpoint(), messagePropertyToIdentifyAttachmentBlob:"attachment-id"));
             var result = await plugin.BeforeMessageSend(message);
 
-            Assert.Null(result.Body);
-            Assert.True(message.UserProperties.ContainsKey("attachment-id"));
+            Assert.Equal(new byte[0], result.Body.ToArray());
+            Assert.True(message.ApplicationProperties.ContainsKey("attachment-id"));
         }
 
         [Fact]
@@ -40,18 +40,18 @@
         {
             var payload = "payload";
             var bytes = Encoding.UTF8.GetBytes(payload);
-            var message = new Message(bytes)
+            var message = new ServiceBusMessage(bytes)
             {
                 MessageId = Guid.NewGuid().ToString(),
                 TimeToLive = TimeSpan.FromHours(1)
             };
             var credentials = new StorageCredentials(await fixture.GetContainerSas("attachments"));
             var plugin = new AzureStorageAttachment(new AzureStorageAttachmentConfiguration(credentials, "http://127.0.0.1:10000/devstoreaccount1", messagePropertyToIdentifyAttachmentBlob:"attachment -id",
-                messageMaxSizeReachedCriteria:msg => msg.Body.Length > 100));
+                messageMaxSizeReachedCriteria:msg => msg.Body.ToArray().Length > 100));
             var result = await plugin.BeforeMessageSend(message);
 
             Assert.NotNull(result.Body);
-            Assert.False(message.UserProperties.ContainsKey("attachment-id"));
+            Assert.False(message.ApplicationProperties.ContainsKey("attachment-id"));
         }
 
         [Fact]
@@ -59,7 +59,7 @@
         {
             var payload = "payload";
             var bytes = Encoding.UTF8.GetBytes(payload);
-            var message = new Message(bytes)
+            var message = new ServiceBusMessage(bytes)
             {
                 MessageId = Guid.NewGuid().ToString(),
                 TimeToLive = TimeSpan.FromHours(1)
@@ -74,7 +74,7 @@
             var account = CloudStorageAccount.Parse(await AzureStorageEmulatorFixture.ConnectionStringProvider.GetConnectionString());
             var client = account.CreateCloudBlobClient();
             var container = client.GetContainerReference("attachments");
-            var blobName = (string)message.UserProperties[configuration.MessagePropertyToIdentifyAttachmentBlob];
+            var blobName = (string)message.ApplicationProperties[configuration.MessagePropertyToIdentifyAttachmentBlob];
             var blob = container.GetBlockBlobReference(blobName);
             await blob.FetchAttributesAsync();
             var validUntil = blob.Metadata[AzureStorageAttachment.ValidUntilUtc];
@@ -86,18 +86,18 @@
         {
             var payload = "payload";
             var bytes = Encoding.UTF8.GetBytes(payload);
-            var message = new Message(bytes);
+            var message = new ServiceBusMessage(bytes);
             var credentials = new StorageCredentials(await fixture.GetContainerSas("attachments"));
             var configuration = new AzureStorageAttachmentConfiguration(credentials, fixture.GetBlobEndpoint(), messagePropertyToIdentifyAttachmentBlob: "attachment-id");
 
             var plugin = new AzureStorageAttachment(configuration);
             await plugin.BeforeMessageSend(message);
 
-            Assert.Null(message.Body);
+            Assert.Equal(new byte[0], message.Body.ToArray());
 
-            var receivedMessage = await plugin.AfterMessageReceive(message);
+            var receivedMessage = await plugin.AfterMessageReceive(ServiceBusModelFactory.ServiceBusReceivedMessage(message.Body, properties: message.ApplicationProperties));
 
-            Assert.Equal(payload, Encoding.UTF8.GetString(receivedMessage.Body));
+            Assert.Equal(payload, receivedMessage.Body.ToString());
         }
 
         [Fact]
@@ -105,7 +105,7 @@
         {
             var payload = "payload";
             var bytes = Encoding.UTF8.GetBytes(payload);
-            var message = new Message(bytes);
+            var message = new ServiceBusMessage(bytes);
             var credentials = new StorageCredentials(await fixture.GetContainerSas("attachments"));
             var configuration = new AzureStorageAttachmentConfiguration(credentials, fixture.GetBlobEndpoint(), messagePropertyToIdentifyAttachmentBlob: "attachment-id");
 
@@ -113,11 +113,11 @@
 
             var processedMessage = await plugin.BeforeMessageSend(message);
 
-            var blobId = processedMessage.UserProperties["attachment-id"];
+            var blobId = processedMessage.ApplicationProperties["attachment-id"];
 
             var reprocessedMessage = await plugin.BeforeMessageSend(message);
 
-            Assert.Equal(blobId, reprocessedMessage.UserProperties["attachment-id"]);
+            Assert.Equal(blobId, reprocessedMessage.ApplicationProperties["attachment-id"]);
         }
 
         [Fact]
@@ -125,7 +125,7 @@
         {
             var payload = "payload";
             var bytes = Encoding.UTF8.GetBytes(payload);
-            var message = new Message(bytes)
+            var message = new ServiceBusMessage(bytes)
             {
                 MessageId = Guid.NewGuid().ToString(),
             };
@@ -133,9 +133,9 @@
             var plugin = new AzureStorageAttachment(new AzureStorageAttachmentConfiguration(credentials, fixture.GetBlobEndpoint(), messagePropertyToIdentifyAttachmentBlob: "attachment-id"));
             var result = await plugin.BeforeMessageSend(message);
 
-            Assert.Null(result.Body);
-            Assert.True(message.UserProperties.ContainsKey("attachment-id"));
-            Assert.False(message.UserProperties.ContainsKey("$attachment.sas.uri"));
+            Assert.Equal(new byte[0], result.Body.ToArray());
+            Assert.True(message.ApplicationProperties.ContainsKey("attachment-id"));
+            Assert.False(message.ApplicationProperties.ContainsKey("$attachment.sas.uri"));
         }
 
         [Fact]
@@ -143,21 +143,21 @@
         {
             var payload = "payload";
             var bytes = Encoding.UTF8.GetBytes(payload);
-            var message = new Message(bytes);
+            var message = new ServiceBusMessage(bytes);
             var credentials = new StorageCredentials(await fixture.GetContainerSas("attachments"));
             var configuration = new AzureStorageAttachmentConfiguration(credentials, fixture.GetBlobEndpoint(), messagePropertyToIdentifyAttachmentBlob: "attachment-id");
 
             var plugin = new AzureStorageAttachment(configuration);
             await plugin.BeforeMessageSend(message);
 
-            Assert.Null(message.Body);
+            Assert.Equal(new byte[0], message.Body.ToArray());
 
             var receivePlugin = new AzureStorageAttachment(new AzureStorageAttachmentConfiguration(
                 connectionStringProvider: AzureStorageEmulatorFixture.ConnectionStringProvider, containerName: "attachments", messagePropertyToIdentifyAttachmentBlob: "attachment-id"));
 
-            var receivedMessage = await receivePlugin.AfterMessageReceive(message);
+            var receivedMessage = await receivePlugin.AfterMessageReceive(ServiceBusModelFactory.ServiceBusReceivedMessage(message.Body, properties: message.ApplicationProperties));
 
-            Assert.Equal(payload, Encoding.UTF8.GetString(receivedMessage.Body));
+            Assert.Equal(payload, receivedMessage.Body.ToString());
         }
     }
 }

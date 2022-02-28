@@ -10,7 +10,7 @@
         {
             var publicApi = typeof(AzureStorageAttachment).Assembly.GeneratePublicApi(new ApiGeneratorOptions
             {
-                WhitelistedNamespacePrefixes = new[] {"Microsoft.Azure.ServiceBus."},
+                WhitelistedNamespacePrefixes = new[] {"Azure.Messaging.ServiceBus."},
                 ExcludeAttributes = new[]
                 {
                     "System.Runtime.Versioning.TargetFrameworkAttribute",

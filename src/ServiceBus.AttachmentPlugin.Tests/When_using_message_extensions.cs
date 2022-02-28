@@ -3,7 +3,7 @@
     using System;
     using System.Text;
     using System.Threading.Tasks;
-    using Microsoft.Azure.ServiceBus;
+    using Azure.Messaging.ServiceBus;
     using Xunit;
 
     public class When_using_message_extensions : IClassFixture<AzureStorageEmulatorFixture>
@@ -21,17 +21,19 @@
         {
             var payload = "payload";
             var bytes = Encoding.UTF8.GetBytes(payload);
-            var message = new Message(bytes);
+            var message = new ServiceBusMessage(bytes);
             var configuration = new AzureStorageAttachmentConfiguration(
                 connectionStringProvider: AzureStorageEmulatorFixture.ConnectionStringProvider, containerName: "attachments", messagePropertyToIdentifyAttachmentBlob: "attachment-id");
 
             await message.UploadAzureStorageAttachment(configuration);
 
-            Assert.Null(message.Body);
+            Assert.Equal(new byte[0], message.Body.ToArray());
 
-            var receivedMessage = await message.DownloadAzureStorageAttachment(configuration);
+            var receivedMessage = await ServiceBusModelFactory
+                .ServiceBusReceivedMessage(message.Body, properties: message.ApplicationProperties)
+                .DownloadAzureStorageAttachment(configuration);
 
-            Assert.Equal(payload, Encoding.UTF8.GetString(receivedMessage.Body));
+            Assert.Equal(payload, receivedMessage.Body.ToString());
         }
 
         [Fact]
@@ -39,18 +41,20 @@
         {
             var payload = "payload";
             var bytes = Encoding.UTF8.GetBytes(payload);
-            var message = new Message(bytes);
+            var message = new ServiceBusMessage(bytes);
             var configuration = new AzureStorageAttachmentConfiguration(
                 connectionStringProvider: AzureStorageEmulatorFixture.ConnectionStringProvider, containerName: "attachments", messagePropertyToIdentifyAttachmentBlob: "attachment-id")
             .WithBlobSasUri();
 
             await message.UploadAzureStorageAttachment(configuration);
 
-            Assert.Null(message.Body);
+            Assert.Equal(new byte[0], message.Body.ToArray());
 
-            var receivedMessage = await message.DownloadAzureStorageAttachment();
+            var receivedMessage = await ServiceBusModelFactory
+                .ServiceBusReceivedMessage(message.Body, properties: message.ApplicationProperties)
+                .DownloadAzureStorageAttachment();
 
-            Assert.Equal(payload, Encoding.UTF8.GetString(receivedMessage.Body));
+            Assert.Equal(payload, receivedMessage.Body.ToString());
         }
 
         [Fact]
@@ -58,7 +62,7 @@
         {
             var payload = "payload";
             var bytes = Encoding.UTF8.GetBytes(payload);
-            var message = new Message(bytes);
+            var message = new ServiceBusMessage(bytes);
             var customSasUri = "$custom-attachment.sas.uri";
             var configuration = new AzureStorageAttachmentConfiguration(
                 connectionStringProvider: AzureStorageEmulatorFixture.ConnectionStringProvider, containerName: "attachments", messagePropertyToIdentifyAttachmentBlob: "attachment-id")
@@ -66,11 +70,13 @@
 
             await message.UploadAzureStorageAttachment(configuration);
 
-            Assert.Null(message.Body);
+            Assert.Equal(new byte[0], message.Body.ToArray());
 
-            var receivedMessage = await message.DownloadAzureStorageAttachment(customSasUri);
+            var receivedMessage = await ServiceBusModelFactory
+                .ServiceBusReceivedMessage(message.Body, properties: message.ApplicationProperties)
+                .DownloadAzureStorageAttachment(customSasUri);
 
-            Assert.Equal(payload, Encoding.UTF8.GetString(receivedMessage.Body));
+            Assert.Equal(payload, receivedMessage.Body.ToString());
         }
 
         [Fact]
@@ -78,7 +84,7 @@
         {
             var payload = "payload";
             var bytes = Encoding.UTF8.GetBytes(payload);
-            var message = new Message(bytes) { MessageId = Guid.NewGuid().ToString("N") };
+            var message = new ServiceBusMessage(bytes) { MessageId = Guid.NewGuid().ToString("N") };
             var configuration = new AzureStorageAttachmentConfiguration(
                 connectionStringProvider: AzureStorageEmulatorFixture.ConnectionStringProvider);
 
@@ -86,12 +92,14 @@
 
             await message.UploadAzureStorageAttachment(configuration);
 
-            Assert.Null(message.Body);
+            Assert.Equal(new byte[0], message.Body.ToArray());
 
-            var receivedMessage = await message.DownloadAzureStorageAttachment(configuration);
+            var receivedMessage = await ServiceBusModelFactory
+                .ServiceBusReceivedMessage(message.Body, properties: message.ApplicationProperties)
+                .DownloadAzureStorageAttachment(configuration);
 
-            Assert.Equal(payload, Encoding.UTF8.GetString(receivedMessage.Body));
-            Assert.Equal($"test/{message.MessageId}", message.UserProperties[configuration.MessagePropertyToIdentifyAttachmentBlob]);
+            Assert.Equal(payload, receivedMessage.Body.ToString());
+            Assert.Equal($"test/{message.MessageId}", message.ApplicationProperties[configuration.MessagePropertyToIdentifyAttachmentBlob]);
         }
 
         [Fact]
@@ -99,7 +107,7 @@
         {
             var payload = "payload";
             var bytes = Encoding.UTF8.GetBytes(payload);
-            var message = new Message(bytes)
+            var message = new ServiceBusMessage(bytes)
             {
                 MessageId = Guid.NewGuid().ToString(),
             };
@@ -109,7 +117,7 @@
             var result = await plugin.BeforeMessageSend(message);
 
             Assert.NotNull(result.Body);
-            Assert.Equal(Array.Empty<byte>(), result.Body);
+            Assert.Equal(Array.Empty<byte>(), result.Body.ToArray());
         }
 
         [Fact]
@@ -117,7 +125,7 @@
         {
             var payload = "payload";
             var bytes = Encoding.UTF8.GetBytes(payload);
-            var message = new Message(bytes)
+            var message = new ServiceBusMessage(bytes)
             {
                 MessageId = Guid.NewGuid().ToString(),
             };
@@ -125,7 +133,7 @@
                 connectionStringProvider: AzureStorageEmulatorFixture.ConnectionStringProvider, containerName: "attachments", messagePropertyToIdentifyAttachmentBlob: "attachment-id"));
             var result = await plugin.BeforeMessageSend(message);
 
-            Assert.Null(result.Body);
+            Assert.Equal(new byte[0], result.Body.ToArray());
         }
     }
 }

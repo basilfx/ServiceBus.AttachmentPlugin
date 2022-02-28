@@ -2,7 +2,7 @@
 {
     using System;
     using System.Threading.Tasks;
-    using Microsoft.Azure.ServiceBus;
+    using Azure.Messaging.ServiceBus;
     using Microsoft.Azure.Storage.Auth;
     using Xunit;
 
@@ -20,7 +20,7 @@
             Assert.NotEmpty(configuration.MessagePropertyToIdentifyAttachmentBlob);
             Assert.Equal(AzureStorageAttachmentConfigurationExtensions.DefaultSasTokenValidationTime.Days, configuration.BlobSasTokenValidationTime!.Value.Days);
             Assert.Equal(AzureStorageAttachmentConfigurationConstants.DefaultMessagePropertyToIdentitySasUri, configuration.MessagePropertyForBlobSasUri);
-            Assert.True(configuration.MessageMaxSizeReachedCriteria(new Message()));
+            Assert.True(configuration.MessageMaxSizeReachedCriteria(new ServiceBusMessage()));
         }
 
         [Fact]

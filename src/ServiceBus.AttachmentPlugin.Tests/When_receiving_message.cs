@@ -1,9 +1,8 @@
 ﻿namespace ServiceBus.AttachmentPlugin.Tests
 {
     using System;
-    using System.Text;
     using System.Threading.Tasks;
-    using Microsoft.Azure.ServiceBus;
+    using Azure.Messaging.ServiceBus;
     using Xunit;
 
     public class When_receiving_message : IClassFixture<AzureStorageEmulatorFixture>
@@ -12,8 +11,7 @@
         public async Task Should_throw_exception_with_blob_path_for_blob_that_cant_be_found()
         {
             var payload = "payload";
-            var bytes = Encoding.UTF8.GetBytes(payload);
-            var message = new Message(bytes)
+            var message = new ServiceBusMessage(BinaryData.FromString(payload))
             {
                 MessageId = Guid.NewGuid().ToString(),
             };
@@ -25,9 +23,10 @@
             var receivingPlugin = new AzureStorageAttachment(new AzureStorageAttachmentConfiguration(
                 connectionStringProvider: AzureStorageEmulatorFixture.ConnectionStringProvider, containerName: "attachments-wrong-containers"));
 
-            var exception = await Assert.ThrowsAsync<Exception>(() => receivingPlugin.AfterMessageReceive(message));
+            var exception = await Assert.ThrowsAsync<Exception>(() => receivingPlugin.AfterMessageReceive(
+                ServiceBusModelFactory.ServiceBusReceivedMessage(message.Body, properties: message.ApplicationProperties)));
             Assert.Contains("attachments-wrong-containers", actualString: exception.Message);
-            Assert.Contains(message.UserProperties["$attachment.blob"].ToString(), actualString: exception.Message);
+            Assert.Contains(message.ApplicationProperties["$attachment.blob"].ToString(), actualString: exception.Message);
         }
     }
 }
