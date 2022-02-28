@@ -1,8 +1,9 @@
-﻿namespace Microsoft.Azure.ServiceBus
+﻿namespace Azure.Messaging.ServiceBus
 {
     using System;
-    using Storage;
-    using Storage.Auth;
+    using global::Azure.Messaging.ServiceBus;
+    using Microsoft.Azure.Storage;
+    using Microsoft.Azure.Storage.Auth;
 
     /// <summary>Runtime configuration for Azure Storage Attachment plugin.</summary>
     public class AzureStorageAttachmentConfiguration
@@ -16,7 +17,7 @@
             string connectionString,
             string containerName = AzureStorageAttachmentConfigurationConstants.DefaultContainerName,
             string messagePropertyToIdentifyAttachmentBlob = AzureStorageAttachmentConfigurationConstants.DefaultMessagePropertyToIdentifyAttachmentBlob,
-            Func<Message, bool>? messageMaxSizeReachedCriteria = default)
+            Func<ServiceBusMessage, bool>? messageMaxSizeReachedCriteria = default)
             : this(new PlainTextConnectionStringProvider(connectionString), containerName, messagePropertyToIdentifyAttachmentBlob, messageMaxSizeReachedCriteria)
         {
         }
@@ -33,7 +34,7 @@
             string blobEndpoint,
             string containerName = AzureStorageAttachmentConfigurationConstants.DefaultContainerName,
             string messagePropertyToIdentifyAttachmentBlob = AzureStorageAttachmentConfigurationConstants.DefaultMessagePropertyToIdentifyAttachmentBlob,
-            Func<Message, bool>? messageMaxSizeReachedCriteria = default)
+            Func<ServiceBusMessage, bool>? messageMaxSizeReachedCriteria = default)
         {
             Guard.AgainstNull(nameof(storageCredentials), storageCredentials);
             Guard.AgainstEmpty(nameof(blobEndpoint), blobEndpoint);
@@ -67,7 +68,7 @@
             IProvideStorageConnectionString connectionStringProvider,
             string containerName = AzureStorageAttachmentConfigurationConstants.DefaultContainerName,
             string messagePropertyToIdentifyAttachmentBlob = AzureStorageAttachmentConfigurationConstants.DefaultMessagePropertyToIdentifyAttachmentBlob,
-            Func<Message, bool>? messageMaxSizeReachedCriteria = default)
+            Func<ServiceBusMessage, bool>? messageMaxSizeReachedCriteria = default)
         {
             Guard.AgainstNull(nameof(connectionStringProvider), connectionStringProvider);
             Guard.AgainstEmpty(nameof(containerName), containerName);
@@ -84,7 +85,7 @@
             MessageMaxSizeReachedCriteria = GetMessageMaxSizeReachedCriteria(messageMaxSizeReachedCriteria);
         }
 
-        Func<Message, bool> GetMessageMaxSizeReachedCriteria(Func<Message, bool>? messageMaxSizeReachedCriteria)
+        Func<ServiceBusMessage, bool> GetMessageMaxSizeReachedCriteria(Func<ServiceBusMessage, bool>? messageMaxSizeReachedCriteria)
         {
             if (messageMaxSizeReachedCriteria == null)
             {
@@ -113,7 +114,7 @@
 
         internal string MessagePropertyToIdentifyAttachmentBlob { get; }
 
-        internal Func<Message, bool> MessageMaxSizeReachedCriteria { get; }
+        internal Func<ServiceBusMessage, bool> MessageMaxSizeReachedCriteria { get; }
 
         internal StorageCredentials StorageCredentials { get; }
 
@@ -121,8 +122,8 @@
 
         internal Uri BlobEndpoint { get; }
 
-        internal Func<Message, string> BlobNameResolver { get; set; } = message => Guid.NewGuid().ToString();
+        internal Func<ServiceBusMessage, string> BlobNameResolver { get; set; } = message => Guid.NewGuid().ToString();
 
-        internal Func<Message, byte[]?> BodyReplacer { get; set; } = message => null;
+        internal Func<ServiceBusMessage, byte[]?> BodyReplacer { get; set; } = message => null;
     }
 }

@@ -3,12 +3,11 @@
     using System;
     using System.Collections.Generic;
     using System.Threading.Tasks;
-    using Microsoft.Azure.ServiceBus;
-    using Microsoft.Azure.ServiceBus.Core;
+    using Azure.Messaging.ServiceBus;
     using Microsoft.Azure.Storage;
     using Microsoft.Azure.Storage.Blob;
 
-    class AzureStorageAttachment : ServiceBusPlugin
+    class AzureStorageAttachment
     {
         internal const string MessageId = "_MessageId";
         internal const string ValidUntilUtc = "_ValidUntilUtc";
@@ -22,15 +21,11 @@
             this.configuration = configuration;
         }
 
-        public override bool ShouldContinueOnException { get; } = false;
-
-        public override string Name => nameof(AzureStorageAttachment);
-
         internal static Func<DateTime> DateTimeFunc = () => DateTime.UtcNow;
 
-        public override async Task<Message> BeforeMessageSend(Message message)
+        public async Task<ServiceBusMessage> BeforeMessageSend(ServiceBusMessage message)
         {
-            if (AttachmentBlobAssociated(message.UserProperties))
+            if (AttachmentBlobAssociated(message.ApplicationProperties))
             {
                 return message;
             }
@@ -63,10 +58,13 @@
             SetValidMessageId(blob, message.MessageId);
             SetValidUntil(blob, message.TimeToLive);
 
-            await blob.UploadFromByteArrayAsync(message.Body, 0, message.Body.Length).ConfigureAwait(false);
+            var bytes = message.Body.ToArray();
+            var newBytes = configuration.BodyReplacer(message) ?? new byte[0];
 
-            message.Body = configuration.BodyReplacer(message);
-            message.UserProperties[configuration.MessagePropertyToIdentifyAttachmentBlob] = blob.Name;
+            await blob.UploadFromByteArrayAsync(bytes, 0, bytes.Length).ConfigureAwait(false);
+
+            message.GetRawAmqpMessage().Body = new Azure.Core.Amqp.AmqpMessageBody(new[] { BinaryData.FromBytes(newBytes).ToMemory() });
+            message.ApplicationProperties[configuration.MessagePropertyToIdentifyAttachmentBlob] = blob.Name;
 
             if (!configuration.BlobSasTokenValidationTime.HasValue)
             {
@@ -76,12 +74,12 @@
             // TODO: only possible if connection string is used
             // configuration.StorageCredentials.IsSharedKey
             var sasUri = TokenGenerator.GetBlobSasUri(blob, configuration.BlobSasTokenValidationTime.Value);
-            message.UserProperties[configuration.MessagePropertyForBlobSasUri] = sasUri;
+            message.ApplicationProperties[configuration.MessagePropertyForBlobSasUri] = sasUri;
             return message;
         }
 
-        bool AttachmentBlobAssociated(IDictionary<string, object> messageUserProperties) =>
-            messageUserProperties.TryGetValue(configuration.MessagePropertyToIdentifyAttachmentBlob, out var _);
+        bool AttachmentBlobAssociated(IDictionary<string, object> messageapplicationProperties) =>
+            messageapplicationProperties.TryGetValue(configuration.MessagePropertyToIdentifyAttachmentBlob, out var _);
 
         static void SetValidMessageId(ICloudBlob blob, string messageId)
         {
@@ -102,16 +100,16 @@
             blob.Metadata[ValidUntilUtc] = validUntil.ToString(DateFormat);
         }
 
-        public override async Task<Message> AfterMessageReceive(Message message)
+        public async Task<ServiceBusReceivedMessage> AfterMessageReceive(ServiceBusReceivedMessage message)
         {
-            var userProperties = message.UserProperties;
+            var applicationProperties = message.ApplicationProperties;
 
-            if (!userProperties.TryGetValue(configuration.MessagePropertyToIdentifyAttachmentBlob, out var blobNameObject))
+            if (!applicationProperties.TryGetValue(configuration.MessagePropertyToIdentifyAttachmentBlob, out var blobNameObject))
             {
                 return message;
             }
 
-            var blob = BuildBlob(userProperties, blobNameObject);
+            var blob = BuildBlob(applicationProperties, blobNameObject);
 
             try
             {
@@ -126,15 +124,15 @@
             var fileByteLength = blob.Properties.Length;
             var bytes = new byte[fileByteLength];
             await blob.DownloadToByteArrayAsync(bytes, 0).ConfigureAwait(false);
-            message.Body = bytes;
+            message.GetRawAmqpMessage().Body = new Azure.Core.Amqp.AmqpMessageBody(new[] { BinaryData.FromBytes(bytes).ToMemory() });
             return message;
         }
 
-        CloudBlockBlob BuildBlob(IDictionary<string, object> userProperties, object blobNameObject)
+        CloudBlockBlob BuildBlob(IReadOnlyDictionary<string, object> applicationProperties, object blobNameObject)
         {
             if (configuration.MessagePropertyForBlobSasUri != null)
             {
-                if (userProperties.TryGetValue(configuration.MessagePropertyForBlobSasUri, out var propertyForBlobSasUri))
+                if (applicationProperties.TryGetValue(configuration.MessagePropertyForBlobSasUri, out var propertyForBlobSasUri))
                 {
                     return new CloudBlockBlob(new Uri((string)propertyForBlobSasUri));
                 }

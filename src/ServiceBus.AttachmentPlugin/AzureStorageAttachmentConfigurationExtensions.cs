@@ -1,6 +1,7 @@
-﻿namespace Microsoft.Azure.ServiceBus
+﻿namespace Azure.Messaging.ServiceBus
 {
     using System;
+    using global::Azure.Messaging.ServiceBus;
 
     /// <summary>
     /// Extension method for setting up the SAS uri configuration.
@@ -13,7 +14,7 @@
         /// Adds blob SAS URI configuration.
         /// </summary>
         /// <param name="azureStorageAttachmentConfiguration"></param>
-        /// <param name="messagePropertyToIdentifySasUri">The <see cref="Message"/> user property used for blob SAS URI.</param>
+        /// <param name="messagePropertyToIdentifySasUri">The <see cref="ServiceBusMessage"/> user property used for blob SAS URI.</param>
         /// <param name="sasTokenValidationTime">The time blob SAS URI is valid for. Default value is 7 days.</param>
         /// <returns></returns>
         public static AzureStorageAttachmentConfiguration WithBlobSasUri(
@@ -46,7 +47,7 @@
         /// <returns></returns>
         public static AzureStorageAttachmentConfiguration OverrideBlobName(
             this AzureStorageAttachmentConfiguration azureStorageAttachmentConfiguration,
-            Func<Message, string> blobNameResolver)
+            Func<ServiceBusMessage, string> blobNameResolver)
         {
             Guard.AgainstNull(nameof(blobNameResolver), blobNameResolver);
 
@@ -54,7 +55,7 @@
 
             return azureStorageAttachmentConfiguration;
 
-            string BlobNameResolver(Message message)
+            string BlobNameResolver(ServiceBusMessage message)
             {
                 try
                 {
@@ -78,7 +79,7 @@
         /// <returns></returns>
         public static AzureStorageAttachmentConfiguration OverrideBody(
             this AzureStorageAttachmentConfiguration azureStorageAttachmentConfiguration,
-            Func<Message, byte[]?> bodyReplacer)
+            Func<ServiceBusMessage, byte[]?> bodyReplacer)
         {
             Guard.AgainstNull(nameof(bodyReplacer), bodyReplacer);
 
@@ -86,7 +87,7 @@
 
             return azureStorageAttachmentConfiguration;
 
-            byte[]? BodyReplacer(Message message)
+            byte[]? BodyReplacer(ServiceBusMessage message)
             {
                 try
                 {

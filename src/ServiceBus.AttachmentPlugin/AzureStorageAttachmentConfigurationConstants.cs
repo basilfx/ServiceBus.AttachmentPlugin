@@ -1,4 +1,4 @@
-﻿namespace Microsoft.Azure.ServiceBus
+﻿namespace Azure.Messaging.ServiceBus
 {
     /// <summary>
     /// 

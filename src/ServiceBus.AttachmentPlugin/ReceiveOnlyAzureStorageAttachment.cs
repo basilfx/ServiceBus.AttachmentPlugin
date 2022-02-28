@@ -2,12 +2,11 @@
 {
     using System;
     using System.Threading.Tasks;
-    using Microsoft.Azure.ServiceBus;
-    using Microsoft.Azure.ServiceBus.Core;
+    using Azure.Messaging.ServiceBus;
     using Microsoft.Azure.Storage;
     using Microsoft.Azure.Storage.Blob;
 
-    class ReceiveOnlyAzureStorageAttachment : ServiceBusPlugin
+    class ReceiveOnlyAzureStorageAttachment
     {
         string messagePropertyToIdentifySasUri;
 
@@ -16,19 +15,15 @@
             this.messagePropertyToIdentifySasUri = messagePropertyToIdentifySasUri;
         }
 
-        public override bool ShouldContinueOnException { get; } = false;
-
-        public override string Name { get; } = nameof(AzureStorageAttachment);
-
-        public override async Task<Message> AfterMessageReceive(Message message)
+        public async Task<ServiceBusReceivedMessage> AfterMessageReceive(ServiceBusReceivedMessage message)
         {
-            var userProperties = message.UserProperties;
-            if (!userProperties.ContainsKey(messagePropertyToIdentifySasUri))
+            var applicationProperties = message.ApplicationProperties;
+            if (!applicationProperties.ContainsKey(messagePropertyToIdentifySasUri))
             {
                 return message;
             }
 
-            var blob = new CloudBlockBlob(new Uri(userProperties[messagePropertyToIdentifySasUri].ToString()));
+            var blob = new CloudBlockBlob(new Uri(applicationProperties[messagePropertyToIdentifySasUri].ToString()));
             try
             {
                 await blob.FetchAttributesAsync().ConfigureAwait(false);
@@ -40,7 +35,7 @@
             var fileByteLength = blob.Properties.Length;
             var bytes = new byte[fileByteLength];
             await blob.DownloadToByteArrayAsync(bytes, 0).ConfigureAwait(false);
-            message.Body = bytes;
+            message.GetRawAmqpMessage().Body = new Azure.Core.Amqp.AmqpMessageBody(new[] { BinaryData.FromBytes(bytes).ToMemory() });
             return message;
         }
     }
