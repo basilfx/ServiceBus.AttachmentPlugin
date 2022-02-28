@@ -1,3 +1,7 @@
+_**2022-02-28**: This fork migrates to Azure.Messaging.ServiceBus. Note that this is an incomplete fork, which lacks the plugin capability._
+
+_**2021-07-14**: Consider using native Azure Service Bus service [large messages](https://docs.microsoft.com/en-ca/azure/service-bus-messaging/service-bus-premium-messaging#large-messages-support-preview) feature for attachments up-to 100 MB._
+
 ![Icon](https://github.com/SeanFeldman/ServiceBus.AttachmentPlugin/blob/master/images/project-icon.png)
 
 ### This is a plugin for [Microsoft.Azure.ServiceBus client](https://github.com/Azure/azure-service-bus-dotnet/)
@@ -24,31 +28,15 @@ toc
 
 ### Convert body into attachment, no matter how big it is
 
-Configuration and registration
-
-snippet: ConfigurationAndRegistration
-
 Sending
 
 snippet: AttachmentSending
 
-Receiving
-
-snippet: AttachmentReceiving
-
 ### Sending a message without exposing the storage account to receivers
-
-Configuration and registration with blob SAS URI
-
-snippet: ConfigurationAndRegistrationSas
 
 Sending
 
 snippet: AttachmentSendingSas
-
-Receiving only mode (w/o Storage account credentials)
-
-snippet: AttachmentReceivingSas
 
 ### Configure blob container name
 
@@ -65,13 +53,6 @@ Default blob identifier property name is "$attachment.blob". The value is availa
 ```c#
 new AzureStorageAttachmentConfiguration(storageConnectionString, messagePropertyToIdentifyAttachmentBlob: "myblob");
 ```
-
-### Configure custom blob name override
-
-Default blob name is a GUID.
-
-snippet: Configure_blob_name_override
-
 
 ### Configure message property for SAS uri to attachment blob
 
@@ -104,7 +85,7 @@ See [`StorageCredentials`](https://docs.microsoft.com/en-us/dotnet/api/microsoft
 
 Azure Functions currently has no way to register plugins, these extension methods are a workaround until this feature is added. 
 
-To use the extensions, your Function must return (send) or take as parameter (receive) an instance of [`Message`](https://docs.microsoft.com/en-us/dotnet/api/microsoft.azure.servicebus.message).
+To use the extensions, your Function must return (send) or take as parameter (receive) an instance of [`Message`](https://docs.microsoft.com/en-us/dotnet/api/Azure.Messaging.ServiceBus.message).
 
 Upload attachment to Azure Storage blob
 
